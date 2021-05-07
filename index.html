@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./index.js" type="module"></script>
+</head>
+<body>
+<div class="id">
+
+</div>
+</body>
+<div class="box"></div>
+<script>
+
+
+    // TODO 高耦合!!
+    // 数据深度
+    let datastack = [];
+    let data = {
+        zuoze: "Ho模板解析引擎Dome",
+        clazz: '班级11',
+        students: [
+            {
+                sname: '学生1',
+                hobbies: [
+                    'play1',
+                    'play2',
+                    'play3',
+                    'play4',
+                    'play5'
+                ]
+            },
+            {
+                sname: '学生2',
+                hobbies: [
+                    'play1',
+                    'play2',
+                    'play3',
+                    'play4',
+                    'play5'
+                ]
+            }
+        ]
+    }
+    let index = 0;
+    let html = `
+
+    <div>
+        <h1>{{zuoze}}</h1>    
+    </div>
+
+	<div>
+        <ol>
+        <li>{{clazz}}</li>
+        </ol>
+		<ol>
+			{{#students}}
+			<li>
+				学生{{sname}}的爱好是
+				<ol>
+					{{#hobbies}}
+					    <li style="color:red">{{.}}</li>
+					{{/hobbies}}
+				</ol>
+			</li>
+			{{/students}}
+		</ol>
+	</div>`
+
+    var box = document.querySelector('.box')
+    JieXi(box)
+
+    
+
+
+
+
+
+
+
+
+
+    function JieXi(box){
+        let tokens =jiexitoken(html)
+        let deeptokens = tokentodeeptokens(tokens)
+        // 输出深度tokens  TODO debug
+        // console.log(deeptokens)
+        // 绑定数据
+        let lasthtml = renderTemplate(deeptokens)
+        // console.log(lasthtml)
+        box.innerHTML = lasthtml
+    }
+
+    // token解析
+    function jiexitoken(html){
+        let tokens =[]
+        while (index<html.length){
+            let word1 = gettoken("{{")
+            if(word1 && word1!=undefined){
+                tokens.push(["text",word1])
+            }
+            jumpstr("{{")
+            let word2 = gettoken("}}")
+            if(word2 && word2!=undefined){
+                if(word2[0] == '#'){
+                    tokens.push(["#",word2.substring(1)])
+                }else if(word2[0] == '/'){
+                    tokens.push(["/",word2.substring(1)])
+                }else {
+                    tokens.push(["name",word2])
+                }
+
+            }
+            jumpstr("}}")
+        }
+        // 输出稀疏tokens
+        // console.log(tokens)
+        return tokens;
+    }      //  解析操作
+    function gettoken(str){
+        if(index<html.length){
+            // if(str)
+            let resindex =  html.substring(index).indexOf(str)
+            if(resindex === -1){
+                let res = html.substring(index)
+                index = html.length
+                return res;
+            }
+            let res = html.substring(index,index+resindex)
+            index = index+resindex;
+            if(res && res!=undefined){
+                return res
+            }
+        }
+    }     //  位置查找
+    function jumpstr(str){
+        index+=str.length
+    }      // 跳格
+    // token合并
+    function tokentodeeptokens(tokens){
+        let tokenstack = [];
+        let oldtoken = [];
+        let newtoken = oldtoken;
+        for (let i = 0; i < tokens.length; i++) {
+            let thistoken = tokens[i]
+            switch (thistoken[0]){
+                case 'name':{
+                    newtoken.push(thistoken)
+                    break;
+                }
+                case 'text':{
+                    newtoken.push(thistoken)
+                    break;
+                }
+                case '#':{
+                    let temptoken = []
+                    newtoken.push([thistoken[0],thistoken[1],temptoken])
+                    tokenstack.push(temptoken)
+                    newtoken= temptoken;
+                    break;
+                }
+                case '/':{
+                    tokenstack.pop()
+                    if(tokenstack.length==0){
+                        newtoken = oldtoken;
+                    }else {
+                        newtoken = tokenstack[tokenstack.length-1]
+                    }
+                    break;
+                }
+            }
+        }
+        return oldtoken;
+    }
+
+    // 数据绑定
+    function renderTemplate(tokens){
+        let reshtml="";
+        for (let token in tokens) {
+            let flag = tokens[token][0]
+            let text = tokens[token][1]
+        
+            if("name" == flag){    // 绑定数据
+                if(text == '.'){
+                    let temp =getdata()
+                    reshtml+=temp.toString()
+                }else{
+                    let context = getdata()
+                    let gdata = context[text]
+                    reshtml+=gdata
+                }
+            }else if("#" == flag){   // 递归绑定
+                // 将当前数据上下文push到全局数据上下文
+                let gdatas='';
+                datastack.push(tokens[token][1])
+                let thiscontentlen =getdata().length
+                for (let i = 0; i < thiscontentlen; i++) {
+                    datastack.push(i)
+                    gdatas += renderTemplate(tokens[token][2])
+                    datastack.pop()
+                }
+                datastack.pop()
+                reshtml+=gdatas
+            }else{
+                reshtml+=text;
+            }
+        }
+        return reshtml
+    }
+
+    // function getdata(str){
+
+
+    //     if(str == undefined){
+
+    //     }
+
+    //     if(datastack.length == 0){
+    //         return data[str]
+    //     }else {
+
+    //     }
+    // }
+
+
+    // 获取数据上下文
+    function getdata(){
+        let resdata =data;
+        for (let dataKey in datastack) {
+            resdata = resdata[datastack[dataKey]];
+        }
+        return resdata
+    }
+
+</script>
+</html>
